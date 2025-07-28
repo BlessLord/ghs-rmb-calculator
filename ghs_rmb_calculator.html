@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Currency Withdrawal Calculator</title>
+    <style>
+        /* Basic reset */
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f6fa;
+            color: #333;
+        }
+        .container {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        /* Tab navigation styles */
+        .tab {
+            display: flex;
+            margin-top: 20px;
+            border-bottom: 1px solid #ccc;
+        }
+        .tab button {
+            flex: 1;
+            background-color: #f1f1f1;
+            border: none;
+            outline: none;
+            padding: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: bold;
+            color: #333;
+        }
+        .tab button.active {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .tabcontent {
+            display: none;
+            padding-top: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 12px;
+            font-weight: 600;
+        }
+        input[type="number"], input[readonly] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input[readonly] {
+            background-color: #e9ecef;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result-label {
+            margin-top: 15px;
+            font-weight: 600;
+        }
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Currency Withdrawal Calculator</h2>
+    <!-- Shared inputs for both conversion types -->
+    <label for="baseRate">Base Exchange Rate (GHS per RMB)</label>
+    <input type="number" id="baseRate" placeholder="e.g. 1.474747" step="0.0001" value="1.474747">
+
+    <label for="markup">Visa Markup (%)</label>
+    <input type="number" id="markup" placeholder="e.g. 6" step="0.01" value="6">
+
+    <!-- Tab navigation to switch between conversion modes -->
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'rmbToGhsTab')">RMB to GHS</button>
+        <button class="tablinks" onclick="openTab(event, 'ghsToRmbTab')">GHS to RMB</button>
+    </div>
+
+    <!-- RMB to GHS conversion tab -->
+    <div id="rmbToGhsTab" class="tabcontent" style="display:block;">
+        <label for="amountRmb">RMB Amount to Withdraw</label>
+        <input type="number" id="amountRmb" placeholder="e.g. 1000" step="0.01">
+        <button id="calculateBtn" type="button">Calculate</button>
+        <div id="results" style="display:none;">
+            <div class="result-label">Effective Rate (GHS per RMB)</div>
+            <input type="text" id="effectiveRate" readonly>
+
+            <div class="result-label">GHS Equivalent (before fee)</div>
+            <input type="text" id="ghsEquivalent" readonly>
+
+            <div class="result-label">Stanbic Fee</div>
+            <input type="text" id="fee" readonly>
+
+            <div class="result-label">Final Total GHS Deducted</div>
+            <input type="text" id="totalGhs" readonly>
+        </div>
+    </div>
+
+    <!-- GHS to RMB conversion tab -->
+    <div id="ghsToRmbTab" class="tabcontent">
+        <label for="amountGhs">Total GHS Deducted</label>
+        <input type="number" id="amountGhs" placeholder="e.g. 1620" step="0.01">
+        <button id="reverseBtn" type="button">Calculate RMB from GHS</button>
+        <div id="reverseResults" style="display:none;">
+            <div class="result-label">GHS Equivalent (before fee)</div>
+            <input type="text" id="ghsEquivalentReverse" readonly>
+
+            <div class="result-label">Estimated RMB Amount</div>
+            <input type="text" id="rmbAmountReverse" readonly>
+
+            <div class="result-label">Stanbic Fee Applied</div>
+            <input type="text" id="feeReverse" readonly>
+        </div>
+    </div>
+    <div class="footer">All calculations are estimates and should be used for informational purposes only.</div>
+</div>
+<script>
+    document.getElementById('calculateBtn').addEventListener('click', function(event) {
+        // Prevent any default button behavior that could interrupt JavaScript execution,
+        // especially on mobile browsers where buttons might submit a form implicitly.
+        event.preventDefault();
+
+        var baseRate = parseFloat(document.getElementById('baseRate').value);
+        var markup = parseFloat(document.getElementById('markup').value);
+        var amountRmb = parseFloat(document.getElementById('amountRmb').value);
+
+        if (isNaN(baseRate) || baseRate <= 0) {
+            alert('Please enter a valid base exchange rate (greater than zero).');
+            return;
+        }
+        if (isNaN(markup) || markup < 0) {
+            alert('Please enter a valid visa markup percentage (zero or positive number).');
+            return;
+        }
+        if (isNaN(amountRmb) || amountRmb <= 0) {
+            alert('Please enter a valid RMB amount to withdraw (greater than zero).');
+            return;
+        }
+
+        // Calculate effective rate
+        var effectiveRate = baseRate * (1 + (markup / 100));
+        // Calculate GHS equivalent before fee
+        var ghsEquivalent = amountRmb * effectiveRate;
+        // Calculate Stanbic fee (max of 1% of GHS amount or GHS 30)
+        var percentageFee = ghsEquivalent * 0.01;
+        var fee = Math.max(percentageFee, 30);
+        // Final total GHS deducted
+        var totalGhs = ghsEquivalent + fee;
+
+        // Update result fields
+        document.getElementById('effectiveRate').value = effectiveRate.toFixed(4);
+        document.getElementById('ghsEquivalent').value = ghsEquivalent.toFixed(2);
+        document.getElementById('fee').value = fee.toFixed(2);
+        document.getElementById('totalGhs').value = totalGhs.toFixed(2);
+
+        // Reveal results section
+        document.getElementById('results').style.display = 'block';
+
+        // Smoothly scroll the results into view so users on mobile can see them immediately
+        var resultsDiv = document.getElementById('results');
+        if (resultsDiv && typeof resultsDiv.scrollIntoView === 'function') {
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    // Reverse conversion: given a total GHS deduction, estimate the RMB amount withdrawn.
+    document.getElementById('reverseBtn').addEventListener('click', function(event) {
+        event.preventDefault();
+
+        var baseRate = parseFloat(document.getElementById('baseRate').value);
+        var markup = parseFloat(document.getElementById('markup').value);
+        var totalGhs = parseFloat(document.getElementById('amountGhs').value);
+
+        // Validate inputs
+        if (isNaN(baseRate) || baseRate <= 0) {
+            alert('Please enter a valid base exchange rate (greater than zero).');
+            return;
+        }
+        if (isNaN(markup) || markup < 0) {
+            alert('Please enter a valid visa markup percentage (zero or positive number).');
+            return;
+        }
+        if (isNaN(totalGhs) || totalGhs <= 0) {
+            alert('Please enter a valid total GHS amount (greater than zero).');
+            return;
+        }
+
+        // Determine the effective rate
+        var effectiveRate = baseRate * (1 + (markup / 100));
+
+        // Reverse the fee logic: if total GHS is less than or equal to 3030, fee is fixed at 30
+        // otherwise the fee is 1% of the GHS equivalent before fee.
+        var ghsEquivalentReverse;
+        var feeReverse;
+        if (totalGhs <= 3030) {
+            // Fee was the flat 30 GHS
+            ghsEquivalentReverse = totalGhs - 30;
+            feeReverse = 30;
+        } else {
+            // Fee was 1% of the GHS equivalent; total = 1.01 * ghsEquivalent
+            ghsEquivalentReverse = totalGhs / 1.01;
+            feeReverse = ghsEquivalentReverse * 0.01;
+        }
+
+        // If the calculated ghsEquivalentReverse is negative (should not happen if validations above pass), clamp to zero
+        if (ghsEquivalentReverse < 0) {
+            ghsEquivalentReverse = 0;
+        }
+
+        // Estimate RMB amount by dividing the GHS equivalent by the effective rate
+        var rmbAmountReverse = ghsEquivalentReverse / effectiveRate;
+
+        // Update the reverse results fields
+        document.getElementById('ghsEquivalentReverse').value = ghsEquivalentReverse.toFixed(2);
+        document.getElementById('feeReverse').value = feeReverse.toFixed(2);
+        document.getElementById('rmbAmountReverse').value = rmbAmountReverse.toFixed(2);
+
+        // Show the reverse results
+        document.getElementById('reverseResults').style.display = 'block';
+        var reverseDiv = document.getElementById('reverseResults');
+        if (reverseDiv && typeof reverseDiv.scrollIntoView === 'function') {
+            reverseDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    // Function to switch between the two conversion tabs. It hides all tabcontent divs,
+    // removes the active class from all tab buttons, then shows the selected tab and marks
+    // its button as active.
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName('tabcontent');
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = 'none';
+        }
+        tablinks = document.getElementsByClassName('tablinks');
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove('active');
+        }
+        document.getElementById(tabName).style.display = 'block';
+        if (evt && evt.currentTarget) {
+            evt.currentTarget.classList.add('active');
+        }
+    }
+</script>
+</body>
+</html>
